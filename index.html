@@ -1,0 +1,326 @@
+<meta name='viewport' content='width=device-width, initial-scale=1'/><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kovai Market - Supermarket Software</title>
+    <style>
+        /* Basic CSS for demonstration - you'll expand this significantly */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        header {
+            text-align: center;
+            padding: 20px;
+            background-color: #28a745; /* Green for supermarket feel */
+            color: white;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .container {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap; /* Allows sections to wrap on smaller screens */
+        }
+        .section {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            flex: 1; /* Allows sections to grow and shrink */
+            min-width: 300px; /* Minimum width before wrapping */
+        }
+        h2 {
+            color: #28a745;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+            margin-top: 0;
+        }
+        input[type="text"],
+        input[type="number"],
+        button {
+            width: calc(100% - 22px); /* Account for padding and border */
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        button {
+            background-color: #007bff; /* Blue for actions */
+            color: white;
+            cursor: pointer;
+            border: none;
+            transition: background-color 0.3s ease;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .product-item, .bill-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px dashed #eee;
+        }
+        .product-item:last-child, .bill-item:last-child {
+            border-bottom: none;
+        }
+        #current-bill-items, #billing-history-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        #total-amount {
+            font-size: 1.2em;
+            font-weight: bold;
+            text-align: right;
+            margin-top: 15px;
+            padding-top: 10px;
+            border-top: 2px solid #eee;
+        }
+        .hidden {
+            display: none; /* Used for showing/hiding sections dynamically with JS */
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Kovai Market</h1>
+        <p>Your Neighborhood Supermarket in Coimbatore</p>
+    </header>
+
+    <div class="container">
+
+        <div id="addProductSection" class="section">
+            <h2>Add New Product</h2>
+            <form id="addProductForm">
+                <label for="productName">Product Name:</label>
+                <input type="text" id="productName" placeholder="e.g., Milk" required>
+
+                <label for="productQuantity">Initial Quantity:</label>
+                <input type="number" id="productQuantity" min="0" value="0" required>
+
+                <label for="productCost">Cost (per unit):</label>
+                <input type="number" id="productCost" min="0.01" step="0.01" placeholder="e.g., 25.50" required>
+
+                <button type="submit">Add Product to Inventory</button>
+            </form>
+            <hr>
+            <h3>Current Inventory (Simulated)</h3>
+            <ul id="inventoryList">
+                <li class="product-item"><span>Bread</span><span>Qty: 50 | Rs. 40.00</span></li>
+                <li class="product-item"><span>Eggs (dozen)</span><span>Qty: 30 | Rs. 80.00</span></li>
+            </ul>
+        </div>
+
+        <div id="generateBillSection" class="section">
+            <h2>Generate E-Bill</h2>
+            <form id="billingForm">
+                <label for="billProductName">Product Name (Search/Select):</label>
+                <input type="text" id="billProductName" placeholder="Type product name">
+                <label for="billQuantity">Quantity:</label>
+                <input type="number" id="billQuantity" min="1" value="1">
+
+                <button type="button" id="addItemToBill">Add Item to Bill</button>
+            </form>
+
+            <h3>Current Bill</h3>
+            <ul id="current-bill-items">
+                </ul>
+            <div id="total-amount">
+                Total: Rs. <span id="bill-total">0.00</span>
+            </div>
+            <button id="generateBillButton">Generate Bill</button>
+            <div id="bill-output" style="margin-top: 20px; border-top: 1px solid #eee; padding-top: 10px;" class="hidden">
+                <h4>Generated Bill:</h4>
+                <pre id="display-bill-details"></pre>
+            </div>
+        </div>
+
+        <div id="billingHistorySection" class="section">
+            <h2>Billing History</h2>
+            <ul id="billing-history-list">
+                <li class="bill-item"><span>Bill #KM20250722-001</span><span>Date: 2025-07-22 | Total: Rs. 150.00</span></li>
+                <li class="bill-item"><span>Bill #KM20250722-002</span><span>Date: 2025-07-22 | Total: Rs. 320.50</span></li>
+            </ul>
+            <button id="viewAllBills">View All Bills</button>
+            </div>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const addProductForm = document.getElementById('addProductForm');
+            const inventoryList = document.getElementById('inventoryList');
+            const billingForm = document.getElementById('billingForm');
+            const addItemToBillButton = document.getElementById('addItemToBill');
+            const currentBillItems = document.getElementById('current-bill-items');
+            const billTotalSpan = document.getElementById('bill-total');
+            const generateBillButton = document.getElementById('generateBillButton');
+            const billOutputDiv = document.getElementById('bill-output');
+            const displayBillDetails = document.getElementById('display-bill-details');
+            const billingHistoryList = document.getElementById('billing-history-list');
+
+            let products = [
+                { name: 'Milk', quantity: 100, cost: 30.00 },
+                { name: 'Bread', quantity: 50, cost: 40.00 },
+                { name: 'Eggs (dozen)', quantity: 30, cost: 80.00 },
+                { name: 'Rice (1kg)', quantity: 200, cost: 60.00 }
+            ];
+
+            let currentBill = [];
+            let billCounter = 0; // Simple counter for bill IDs
+            let billingHistory = [];
+
+            function renderInventory() {
+                inventoryList.innerHTML = '';
+                products.forEach(product => {
+                    const li = document.createElement('li');
+                    li.classList.add('product-item');
+                    li.innerHTML = `<span>${product.name}</span><span>Qty: ${product.quantity} | Rs. ${product.cost.toFixed(2)}</span>`;
+                    inventoryList.appendChild(li);
+                });
+            }
+
+            function updateBillTotal() {
+                const total = currentBill.reduce((sum, item) => sum + (item.quantity * item.cost), 0);
+                billTotalSpan.textContent = total.toFixed(2);
+            }
+
+            // Add Product functionality
+            addProductForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const name = document.getElementById('productName').value.trim();
+                const quantity = parseInt(document.getElementById('productQuantity').value);
+                const cost = parseFloat(document.getElementById('productCost').value);
+
+                if (name && !isNaN(quantity) && !isNaN(cost) && cost > 0) {
+                    const existingProduct = products.find(p => p.name.toLowerCase() === name.toLowerCase());
+                    if (existingProduct) {
+                        existingProduct.quantity += quantity;
+                        existingProduct.cost = cost; // Update cost if product exists
+                    } else {
+                        products.push({ name, quantity, cost });
+                    }
+                    renderInventory();
+                    addProductForm.reset();
+                } else {
+                    alert('Please enter valid product details.');
+                }
+            });
+
+            // Add Item to Bill functionality
+            addItemToBillButton.addEventListener('click', () => {
+                const productName = document.getElementById('billProductName').value.trim();
+                const quantity = parseInt(document.getElementById('billQuantity').value);
+
+                const product = products.find(p => p.name.toLowerCase() === productName.toLowerCase());
+
+                if (product && quantity > 0 && quantity <= product.quantity) {
+                    const existingBillItem = currentBill.find(item => item.name.toLowerCase() === productName.toLowerCase());
+
+                    if (existingBillItem) {
+                        existingBillItem.quantity += quantity;
+                    } else {
+                        currentBill.push({
+                            name: product.name,
+                            quantity: quantity,
+                            cost: product.cost
+                        });
+                    }
+                    product.quantity -= quantity; // Deduct from inventory
+
+                    renderCurrentBill();
+                    updateBillTotal();
+                    renderInventory(); // Update inventory display after deduction
+                    billingForm.reset();
+                } else if (!product) {
+                    alert('Product not found in inventory.');
+                } else if (quantity > product.quantity) {
+                    alert(`Not enough stock for ${product.name}. Available: ${product.quantity}`);
+                } else {
+                    alert('Please enter a valid product name and quantity.');
+                }
+            });
+
+            function renderCurrentBill() {
+                currentBillItems.innerHTML = '';
+                currentBill.forEach(item => {
+                    const li = document.createElement('li');
+                    li.classList.add('product-item');
+                    li.innerHTML = `<span>${item.name} x ${item.quantity}</span><span>Rs. ${(item.quantity * item.cost).toFixed(2)}</span>`;
+                    currentBillItems.appendChild(li);
+                });
+            }
+
+            // Generate Bill functionality
+            generateBillButton.addEventListener('click', () => {
+                if (currentBill.length === 0) {
+                    alert('Add items to the bill before generating.');
+                    return;
+                }
+
+                billCounter++;
+                const billId = `KM${new Date().getFullYear()}${(new Date().getMonth() + 1).toString().padStart(2, '0')}${new Date().getDate().toString().padStart(2, '0')}-${billCounter.toString().padStart(3, '0')}`;
+                const billDate = new Date().toLocaleString();
+                const totalAmount = parseFloat(billTotalSpan.textContent);
+
+                let billContent = `Kovai Market - E-Bill\n`;
+                billContent += `Coimbatore\n`;
+                billContent += `------------------------------------\n`;
+                billContent += `Bill ID: ${billId}\n`;
+                billContent += `Date: ${billDate}\n`;
+                billContent += `------------------------------------\n`;
+                billContent += `Item             Qty   Price   Total\n`;
+                billContent += `------------------------------------\n`;
+
+                currentBill.forEach(item => {
+                    const itemTotal = item.quantity * item.cost;
+                    billContent += `${item.name.padEnd(16)}${item.quantity.toString().padEnd(6)}${item.cost.toFixed(2).padEnd(8)}${itemTotal.toFixed(2)}\n`;
+                });
+
+                billContent += `------------------------------------\n`;
+                billContent += `Total Amount: Rs. ${totalAmount.toFixed(2)}\n`;
+                billContent += `------------------------------------\n`;
+                billContent += `Thank you for shopping with us!\n`;
+
+                displayBillDetails.textContent = billContent;
+                billOutputDiv.classList.remove('hidden');
+
+                // Add to billing history
+                billingHistory.push({
+                    id: billId,
+                    date: billDate,
+                    total: totalAmount,
+                    items: [...currentBill] // Store a copy of currentBill items
+                });
+                renderBillingHistory();
+
+                // Clear current bill
+                currentBill = [];
+                renderCurrentBill();
+                updateBillTotal();
+            });
+
+            function renderBillingHistory() {
+                billingHistoryList.innerHTML = '';
+                // Displaying in reverse order for newest first
+                billingHistory.slice().reverse().forEach(bill => {
+                    const li = document.createElement('li');
+                    li.classList.add('bill-item');
+                    li.innerHTML = `<span>Bill #${bill.id}</span><span>Date: ${new Date(bill.date).toLocaleDateString()} | Total: Rs. ${bill.total.toFixed(2)}</span>`;
+                    // You could add an event listener here to show full bill details on click
+                    billingHistoryList.appendChild(li);
+                });
+            }
+
+            // Initial render
+            renderInventory();
+            renderBillingHistory();
+        });
+    </script>
+</body>
+</html>
